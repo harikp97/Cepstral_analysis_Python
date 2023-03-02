@@ -14,7 +14,7 @@ from scipy import optimize
 from scipy import ndimage,linalg 
 import time
 import matplotlib.pyplot as plt
-#import cv2
+import cv2
 from IPython.display import display
 import warnings
 import ipywidgets as widgets
@@ -666,7 +666,7 @@ def makeRelativeSpotReference_median( spotMaps, ref_roi ):
 
 	return spotRef
 
-def calculateStrainMap(spotMaps, spotRef, latticeCoords=1):
+def calculateStrainMap(spotMaps, spotRef, latticeCoords=1, image_basis=0):
 	'''
 	Calculates the strain map - the  affine transformation relating the reference EWPC peaks to
 	the EWPC peaks at each probe position is calculated and then decomposed into a strain matrix
@@ -702,12 +702,12 @@ def calculateStrainMap(spotMaps, spotRef, latticeCoords=1):
 	#prepare reference point list 
 	num = len(spotRef['id'])
 	for i in range(num):
-		refPoints = np.array([ spotRef['point'][0], spotRef['point'][1] ])
+		refPoints = np.array([ [0,0], spotRef['point'][0], spotRef['point'][1] ])
 		refPoints = np.float32(refPoints)
 	
 	for j in range(N_x1):
 		for k in range(N_x2):
-			dataPoints = []
+			dataPoints = [[0,0]]
 			
 			for s in range(num):
 				
@@ -728,10 +728,16 @@ def calculateStrainMap(spotMaps, spotRef, latticeCoords=1):
 				StrainComponents["minAx"][j,k] = np.nan
 				StrainComponents["strainAngle"][j,k] = np.nan                
 				
-			else:       
+			else:
+
+				if(image_basis==0):       
+					dataPoints_array_trim = dataPoints_array[1:, :]
+					refPoints_trim = refPoints[1:,:]
+					M = np.matmul(dataPoints_array_trim, np.linalg.inv(refPoints_trim) )
 				
-				M = np.matmul(dataPoints_array, np.linalg.inv(refPoints) )
-				
+				else:
+					M = cv2.getAffineTransform(refPoints, dataPoints_array)
+					M =  M[:,0:2]
 				
 				r, u = linalg.polar(M, 'right') # M = ru
 				r, v = linalg.polar(M, 'left') # M = vr
